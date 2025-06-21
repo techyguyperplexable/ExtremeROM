@@ -29,7 +29,7 @@ case "$TARGET_SINGLE_SYSTEM_IMAGE" in
         SOURCE_EXTRA_FIRMWARES=("")
         SOURCE_API_LEVEL=35
         SOURCE_PRODUCT_FIRST_API_LEVEL=35
-        SOURCE_VNDK_VERSION="none"
+        SOURCE_VNDK_VERSION="33"
         SOURCE_HAS_SYSTEM_EXT=true
         SOURCE_SUPER_GROUP_NAME="samsung_dynamic_partitions"
         

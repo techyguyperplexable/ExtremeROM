@@ -1,5 +1,19 @@
 # ExtremeROM Nexus changelog
 
+# 2.6.1
+- Updated build system (thx @Ksawlii)
+- Added ASCII art in the installer (thx @bkurt)
+- Switched to ExtremeROM Certificate for modified APKs and main installer ZIP (thx @salvogiangri)
+- Added ExtremeROM Branding in Settings
+- Brought back 4-digit OK PIN Patch (thx @Ocin4ever)
+- Fixed 16MP UW on S10 Series (thx @Mesazane)
+- Fixed Heart Rate Monitor sensor on S10 Series
+- Fixed Camera on Note 20
+- Fixed Bluetooth on S10 Series and S20 FE
+- Fixed Portrait Video on S22 Series (thx @dupazlasu)
+- Fixed Samsung Camera app icon for S10 Series (thx @Ocin4Ever)
+- Updated base firmware to S24 FE August Security Patch
+
 # 2.6.0
 - Fixed MyFilter for exynos2200 (thx @dupazlasu)
 - Switched to OneUI 6.1.1 camera for exynos9820 (fixed watermark, filters, lockscreen gallery, double videos in gallery, post-processing and more) (thx @PeterKnecht)

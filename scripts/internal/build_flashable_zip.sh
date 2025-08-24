@@ -29,11 +29,26 @@ TMP_DIR="$OUT_DIR/zip"
 ROM_STATUS="UNOFFICIAL"
 $ROM_IS_OFFICIAL && ROM_STATUS="OFFICIAL"
 
-FILE_NAME="ExtremeROM_${ROM_STATUS}_${ROM_VERSION}_$(date +%Y%m%d)_${TARGET_CODENAME}"
+ZIP_FILE_SUFFIX="-sign.zip"
+$DEBUG && ! $ROM_IS_OFFICIAL && ZIP_FILE_SUFFIX=".zip"
+
+FILE_NAME="ExtremeROM_${ROM_STATUS}_${ROM_VERSION}_$(date +%Y%m%d)_${TARGET_CODENAME}${ZIP_FILE_SUFFIX}"
 while [ -f "$OUT_DIR/$FILE_NAME" ]; do
     INCREMENTAL=$((INCREMENTAL + 1))
-    FILE_NAME="ExtremeROM_${ROM_VERSION}_$(date +%Y%m%d)-${INCREMENTAL}_${TARGET_CODENAME}.zip"
+    FILE_NAME="ExtremeROM_${ROM_VERSION}_$(date +%Y%m%d)-${INCREMENTAL}_${TARGET_CODENAME}${ZIP_FILE_SUFFIX}"
 done
+
+PRIVATE_KEY_PATH="$SRC_DIR/security/"
+PUBLIC_KEY_PATH="$SRC_DIR/security/"
+if $ROM_IS_OFFICIAL; then
+    PRIVATE_KEY_PATH+="extremerom"
+    PUBLIC_KEY_PATH+="extremerom"
+else
+    PRIVATE_KEY_PATH+="aosp"
+    PUBLIC_KEY_PATH+="aosp"
+fi
+PRIVATE_KEY_PATH+="_platform.pk8"
+PUBLIC_KEY_PATH+="_platform.x509.pem"
 
 trap 'rm -rf "$TMP_DIR"' EXIT INT
 
@@ -521,9 +536,9 @@ GENERATE_UPDATER_SCRIPT()
 
         echo -e "\n"
         echo    'ui_print("Cleaning up...");'
-        echo    'package_extract_dir("scripts", "/tmp/scripts");'
-        echo    'set_metadata_recursive("/tmp/scripts", "uid", 0, "gid", 0, "dmode", 0755, "fmode", 0755);'
-        echo    'run_program("/tmp/scripts/cleanup.sh");'
+        echo    'package_extract_file("cleanup.sh", "/tmp/cleanup.sh");'
+        echo    'set_metadata("/tmp/cleanup.sh", "uid", 0, "gid", 0, "dmode", 0755, "fmode", 0755);'
+        echo    'run_program("/tmp/cleanup.sh");'
 
         echo -e "\n"
         echo    'set_progress(1);'
@@ -670,15 +685,28 @@ LOG "- Generating OTA metadata"
 GENERATE_OTA_METADATA
 
 LOG "- Creating zip"
-EVAL "echo | zip > \"$TMP_DIR/rom.zip\" && zip -d \"$TMP_DIR/rom.zip\" -" || exit 1
-while IFS= read -r f; do
-    # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/common.py#3601
-    # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/common.py#3609
-    # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/ota_utils.py#184
-    # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/ota_utils.py#186
-    EVAL "cd \"$TMP_DIR\" && zip -r -X -Z store \"$TMP_DIR/rom.zip\" \"${f//$TMP_DIR\//}\"" || exit 1
-done < <(find "$TMP_DIR" -type f ! -name "*.zip")
+EVAL "rm -f \"$OUT_DIR/rom.zip\"" || exit 1
+pushd "$TMP_DIR" > /dev/null
 
-mv -f "$TMP_DIR/rom.zip" "$OUT_DIR/$FILE_NAME.zip"
+# 1. Compressed files (everything except zips, special dat files, META-INF)
+find . -type f ! -name "*.new.dat.br" ! -name "*.patch.dat" > compressed.txt
+
+# 2. Stored files (special dat files + META-INF folder)
+find . -type f \( -name "*.new.dat.br" -o -name "*.patch.dat" -o -name "META-INF" \) > stored.txt
+META_INF="./META-INF"
+
+# Add batches
+EVAL "7z a -tzip -mx=9 -mmt=$(nproc --all) \"$TMP_DIR/rom.zip\" @\"compressed.txt\""
+EVAL "7z a -tzip -mx=0 -mmt=$(nproc --all) \"$TMP_DIR/rom.zip\" @\"stored.txt\" \"$META_INF\""
+
+if ! $DEBUG; then
+    LOG "- Signing zip"
+    EVAL "signapk -w \"$PUBLIC_KEY_PATH\" \"$PRIVATE_KEY_PATH\" \"$TMP_DIR/rom.zip\" \"$OUT_DIR/$FILE_NAME\"" || exit 1
+    rm -f "$TMP_DIR/rom.zip"
+else
+    mv -f "$TMP_DIR/rom.zip" "$OUT_DIR/$FILE_NAME"
+fi
+
+popd > /dev/null
 
 exit 0
